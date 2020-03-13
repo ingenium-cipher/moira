@@ -68,7 +68,8 @@ func BenchmarkUnpackMetricValues(b *testing.B) {
 
 func TestFetchData(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
-	dataBase := mock_moira_alert.NewMockDatabase(mockCtrl)
+	database := mock_moira_alert.NewMockDatabase(mockCtrl)
+	database.EXPECT().AllowStale().AnyTimes().Return(database)
 	pattern := "super-puper-pattern"
 	metric := "super-puper-metric"
 	dataList := map[string][]*moira.MetricValue{
@@ -110,25 +111,25 @@ func TestFetchData(t *testing.T) {
 
 	Convey("Errors Test", t, func() {
 		Convey("GetPatternMetricsError", func() {
-			dataBase.EXPECT().GetPatternMetrics(pattern).Return(nil, patternErr)
-			metricData, metrics, err := FetchData(dataBase, pattern, from, until, true)
+			database.EXPECT().GetPatternMetrics(pattern).Return(nil, patternErr)
+			metricData, metrics, err := FetchData(database, pattern, from, until, true)
 			So(metricData, ShouldBeNil)
 			So(metrics, ShouldBeNil)
 			So(err, ShouldResemble, patternErr)
 		})
 		Convey("GetMetricRetentionError", func() {
-			dataBase.EXPECT().GetPatternMetrics(pattern).Return([]string{metric}, nil)
-			dataBase.EXPECT().GetMetricRetention(metric).Return(int64(0), retentionErr)
-			metricData, metrics, err := FetchData(dataBase, pattern, from, until, true)
+			database.EXPECT().GetPatternMetrics(pattern).Return([]string{metric}, nil)
+			database.EXPECT().GetMetricRetention(metric).Return(int64(0), retentionErr)
+			metricData, metrics, err := FetchData(database, pattern, from, until, true)
 			So(metricData, ShouldBeNil)
 			So(metrics, ShouldBeNil)
 			So(err, ShouldResemble, retentionErr)
 		})
 		Convey("GetMetricsValuesError", func() {
-			dataBase.EXPECT().GetPatternMetrics(pattern).Return([]string{metric}, nil)
-			dataBase.EXPECT().GetMetricRetention(metric).Return(retention, nil)
-			dataBase.EXPECT().GetMetricsValues([]string{metric}, from, until).Return(nil, metricErr)
-			metricData, metrics, err := FetchData(dataBase, pattern, from, until, true)
+			database.EXPECT().GetPatternMetrics(pattern).Return([]string{metric}, nil)
+			database.EXPECT().GetMetricRetention(metric).Return(retention, nil)
+			database.EXPECT().GetMetricsValues([]string{metric}, from, until).Return(nil, metricErr)
+			metricData, metrics, err := FetchData(database, pattern, from, until, true)
 			So(metricData, ShouldBeNil)
 			So(metrics, ShouldBeNil)
 			So(err, ShouldResemble, metricErr)
@@ -136,8 +137,8 @@ func TestFetchData(t *testing.T) {
 	})
 
 	Convey("Test no metrics", t, func() {
-		dataBase.EXPECT().GetPatternMetrics(pattern).Return([]string{}, nil)
-		metricData, metrics, err := FetchData(dataBase, pattern, from, until, false)
+		database.EXPECT().GetPatternMetrics(pattern).Return([]string{}, nil)
+		metricData, metrics, err := FetchData(database, pattern, from, until, false)
 		fetchResponse := pb.FetchResponse{
 			Name:      pattern,
 			StartTime: from,
@@ -152,10 +153,10 @@ func TestFetchData(t *testing.T) {
 	})
 
 	Convey("Test allowRealTimeAlerting=false", t, func() {
-		dataBase.EXPECT().GetPatternMetrics(pattern).Return([]string{metric}, nil)
-		dataBase.EXPECT().GetMetricRetention(metric).Return(retention, nil)
-		dataBase.EXPECT().GetMetricsValues([]string{metric}, from, until).Return(dataList, nil)
-		metricData, metrics, err := FetchData(dataBase, pattern, from, until, false)
+		database.EXPECT().GetPatternMetrics(pattern).Return([]string{metric}, nil)
+		database.EXPECT().GetMetricRetention(metric).Return(retention, nil)
+		database.EXPECT().GetMetricsValues([]string{metric}, from, until).Return(dataList, nil)
+		metricData, metrics, err := FetchData(database, pattern, from, until, false)
 		fetchResponse := pb.FetchResponse{
 			Name:      metric,
 			StartTime: from,
@@ -170,10 +171,10 @@ func TestFetchData(t *testing.T) {
 	})
 
 	Convey("Test allowRealTimeAlerting=true", t, func() {
-		dataBase.EXPECT().GetPatternMetrics(pattern).Return([]string{metric}, nil)
-		dataBase.EXPECT().GetMetricRetention(metric).Return(retention, nil)
-		dataBase.EXPECT().GetMetricsValues([]string{metric}, from, until).Return(dataList, nil)
-		metricData, metrics, err := FetchData(dataBase, pattern, from, until, true)
+		database.EXPECT().GetPatternMetrics(pattern).Return([]string{metric}, nil)
+		database.EXPECT().GetMetricRetention(metric).Return(retention, nil)
+		database.EXPECT().GetMetricsValues([]string{metric}, from, until).Return(dataList, nil)
+		metricData, metrics, err := FetchData(database, pattern, from, until, true)
 		fetchResponse := pb.FetchResponse{
 			Name:      metric,
 			StartTime: from,
@@ -217,10 +218,10 @@ func TestFetchData(t *testing.T) {
 	}
 
 	Convey("Test multiple metrics", t, func() {
-		dataBase.EXPECT().GetPatternMetrics(pattern).Return([]string{metric, metric2}, nil)
-		dataBase.EXPECT().GetMetricRetention(metric).Return(retention, nil)
-		dataBase.EXPECT().GetMetricsValues([]string{metric, metric2}, from, until).Return(dataList, nil)
-		metricData, metrics, err := FetchData(dataBase, pattern, from, until, true)
+		database.EXPECT().GetPatternMetrics(pattern).Return([]string{metric, metric2}, nil)
+		database.EXPECT().GetMetricRetention(metric).Return(retention, nil)
+		database.EXPECT().GetMetricsValues([]string{metric, metric2}, from, until).Return(dataList, nil)
+		metricData, metrics, err := FetchData(database, pattern, from, until, true)
 		fetchResponse := pb.FetchResponse{
 			Name:      metric,
 			StartTime: from,

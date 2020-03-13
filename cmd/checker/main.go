@@ -75,6 +75,7 @@ func main() {
 	defer telemetry.Stop()
 
 	databaseSettings := config.Redis.GetSettings()
+	databaseSettings.AllowSlaveReads = true
 	database := redis.NewDatabase(logger, databaseSettings, redis.Checker)
 
 	remoteConfig := config.Remote.GetRemoteSourceSettings()

@@ -20,8 +20,9 @@ func init() {
 
 func TestEvaluateTarget(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
-	dataBase := mock_moira_alert.NewMockDatabase(mockCtrl)
-	localSource := Create(dataBase)
+	database := mock_moira_alert.NewMockDatabase(mockCtrl)
+	database.EXPECT().AllowStale().AnyTimes().Return(database)
+	localSource := Create(database)
 	defer mockCtrl.Finish()
 
 	pattern := "super.puper.pattern"
@@ -70,27 +71,27 @@ func TestEvaluateTarget(t *testing.T) {
 		})
 
 		Convey("Error in fetch data", func() {
-			dataBase.EXPECT().GetPatternMetrics(pattern).Return([]string{metric}, nil)
-			dataBase.EXPECT().GetMetricRetention(metric).Return(retention, nil)
-			dataBase.EXPECT().GetMetricsValues([]string{metric}, from, until).Return(nil, metricErr)
+			database.EXPECT().GetPatternMetrics(pattern).Return([]string{metric}, nil)
+			database.EXPECT().GetMetricRetention(metric).Return(retention, nil)
+			database.EXPECT().GetMetricsValues([]string{metric}, from, until).Return(nil, metricErr)
 			result, err := localSource.Fetch("super.puper.pattern", from, until, true)
 			So(err, ShouldResemble, metricErr)
 			So(result, ShouldBeNil)
 		})
 
 		Convey("Error evaluate target", func() {
-			dataBase.EXPECT().GetPatternMetrics("super.puper.pattern").Return([]string{metric}, nil)
-			dataBase.EXPECT().GetMetricRetention(metric).Return(retention, nil)
-			dataBase.EXPECT().GetMetricsValues([]string{metric}, from, until).Return(dataList, nil)
+			database.EXPECT().GetPatternMetrics("super.puper.pattern").Return([]string{metric}, nil)
+			database.EXPECT().GetMetricRetention(metric).Return(retention, nil)
+			database.EXPECT().GetMetricsValues([]string{metric}, from, until).Return(dataList, nil)
 			result, err := localSource.Fetch("aliasByNoe(super.puper.pattern, 2)", from, until, true)
 			So(err.Error(), ShouldResemble, "Unknown graphite function: \"aliasByNoe\"")
 			So(result, ShouldBeNil)
 		})
 
 		Convey("Panic while evaluate target", func() {
-			dataBase.EXPECT().GetPatternMetrics("super.puper.pattern").Return([]string{metric}, nil)
-			dataBase.EXPECT().GetMetricRetention(metric).Return(retention, nil)
-			dataBase.EXPECT().GetMetricsValues([]string{metric}, from, until).Return(dataList, nil)
+			database.EXPECT().GetPatternMetrics("super.puper.pattern").Return([]string{metric}, nil)
+			database.EXPECT().GetMetricRetention(metric).Return(retention, nil)
+			database.EXPECT().GetMetricsValues([]string{metric}, from, until).Return(dataList, nil)
 			result, err := localSource.Fetch("movingAverage(super.puper.pattern, -1)", from, until, true)
 			expectedErrSubstring := strings.Split(ErrEvaluateTargetFailedWithPanic{target: "movingAverage(super.puper.pattern, -1)"}.Error(), ":")[0]
 			So(err.Error(), ShouldStartWith, expectedErrSubstring)
@@ -99,7 +100,7 @@ func TestEvaluateTarget(t *testing.T) {
 	})
 
 	Convey("Test no metrics", t, func() {
-		dataBase.EXPECT().GetPatternMetrics("super.puper.pattern").Return([]string{}, nil)
+		database.EXPECT().GetPatternMetrics("super.puper.pattern").Return([]string{}, nil)
 		result, err := localSource.Fetch("aliasByNode(super.puper.pattern, 2)", from, until, true)
 		So(err, ShouldBeNil)
 		So(result, ShouldResemble, &FetchResult{
@@ -117,9 +118,9 @@ func TestEvaluateTarget(t *testing.T) {
 	})
 
 	Convey("Test success evaluate", t, func() {
-		dataBase.EXPECT().GetPatternMetrics("super.puper.pattern").Return([]string{metric}, nil)
-		dataBase.EXPECT().GetMetricRetention(metric).Return(retention, nil)
-		dataBase.EXPECT().GetMetricsValues([]string{metric}, from, until).Return(dataList, nil)
+		database.EXPECT().GetPatternMetrics("super.puper.pattern").Return([]string{metric}, nil)
+		database.EXPECT().GetMetricRetention(metric).Return(retention, nil)
+		database.EXPECT().GetMetricsValues([]string{metric}, from, until).Return(dataList, nil)
 		result, err := localSource.Fetch("aliasByNode(super.puper.pattern, 2)", from, until, true)
 		So(err, ShouldBeNil)
 		So(result, ShouldResemble, &FetchResult{
@@ -137,9 +138,9 @@ func TestEvaluateTarget(t *testing.T) {
 	})
 
 	Convey("Test success evaluate pipe target", t, func() {
-		dataBase.EXPECT().GetPatternMetrics("super.puper.pattern").Return([]string{metric}, nil)
-		dataBase.EXPECT().GetMetricRetention(metric).Return(retention, nil)
-		dataBase.EXPECT().GetMetricsValues([]string{metric}, from, until).Return(dataList, nil)
+		database.EXPECT().GetPatternMetrics("super.puper.pattern").Return([]string{metric}, nil)
+		database.EXPECT().GetMetricRetention(metric).Return(retention, nil)
+		database.EXPECT().GetMetricsValues([]string{metric}, from, until).Return(dataList, nil)
 		result, err := localSource.Fetch("super.puper.pattern | scale(100) | aliasByNode(2)", from, until, true)
 		So(err, ShouldBeNil)
 		So(result, ShouldResemble, &FetchResult{
